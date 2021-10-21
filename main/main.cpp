@@ -22,7 +22,7 @@ void LEDThread(void* pvParameter)
 }
 
 static uint8_t ServoModeOmega;
-void Button180DegreeThreadOmega(void)
+void OmegaInit(void)
 {
     ledc_timer_config_t ledc_timer;
         ledc_timer.speed_mode       = LEDC_LOW_SPEED_MODE;
@@ -44,7 +44,7 @@ void Button180DegreeThreadOmega(void)
 }
 
 static uint8_t ServoModeTheta;
-void Button180DegreeThreadTheta(void)
+void ThetaInit(void)
 {
     ledc_timer_config_t ledc_timer;
         ledc_timer.speed_mode       = LEDC_LOW_SPEED_MODE;
@@ -90,7 +90,7 @@ void ThetaAngleCallback(Characteristic* ch, esp_ble_gatts_cb_param_t* param)
         ThetaAngle -= 180;
     
     ThetaAngle /= 2;
-    ThetaAngle += 30;
+    ThetaAngle += 35;
 
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, ThetaAngle);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
@@ -100,6 +100,18 @@ void UARTreadThread(void* pvParamter)
 {
     byte *data = new byte[20];
     int len = 0;
+
+    uart_config_t uart_config = {
+        .baud_rate = 56000,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+    uart_driver_install(UART_NUM_1, 2048, 0, 0, NULL, 0);
+    uart_param_config(UART_NUM_1, &uart_config);
+    uart_set_pin(UART_NUM_1, 25, 26, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+
     while(true)
     {
         len = uart_read_bytes(UART_NUM_1, data, 20, 5 / portTICK_RATE_MS);
@@ -138,21 +150,10 @@ void app_main(void)
 {
     nvs_flash_init();
 
-    uart_config_t uart_config = {
-        .baud_rate = 56000,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    };
-    uart_driver_install(UART_NUM_1, 2048, 0, 0, NULL, 0);
-    uart_param_config(UART_NUM_1, &uart_config);
-    uart_set_pin(UART_NUM_1, 25, 26, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
     xTaskCreate(LEDThread, "LEDThread", 1024, NULL, 0, NULL);
     xTaskCreate(UARTreadThread, "UARTreadThread", 2048, NULL, 0, NULL);
-    Button180DegreeThreadOmega();
-    Button180DegreeThreadTheta();
+    OmegaInit();
+    ThetaInit();
     
     std::vector <Characteristic*> OmegaChars {&OmegaAngleChar};
     OmegaAngleChar.setWritehandler(OmegaAngleCallback);
